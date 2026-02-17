@@ -1,4 +1,4 @@
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Index
 from sqlalchemy import String, Integer, Float
 from typing import Optional
 
@@ -16,6 +16,11 @@ class dim_date(Base):
     day_of_week: Mapped[str] = mapped_column(String(1), nullable=False)
     is_weekend: Mapped[Optional[int]] = mapped_column(Integer)
 
+    __table_args__ = (
+        Index('index_dim_date_date', 'date'),
+        Index('index_dim_date_day_of_week', 'day_of_week')
+    )
+
 
 class dim_film(Base):
     __tablename__ = "dim_film"
@@ -27,6 +32,11 @@ class dim_film(Base):
     language: Mapped[str] = mapped_column(String(20), nullable=False)
     release_year: Mapped[str] = mapped_column(String(4), nullable=False)
     last_update: Mapped[str] = mapped_column(String(10), nullable=False)
+
+    __table_args__ = (
+        Index('index_dim_film_film_id', 'film_id'),
+        Index('index_')
+    )
 
 
 class dim_actor(Base):
@@ -70,7 +80,7 @@ class dim_customer(Base):
 class bridge_film_actor(Base):
     __tablename__ = "bridge_film_actor"
     film_key: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
-    actor_key: Mapped[int] = mapped_column(Integer, nullable=False)
+    actor_key: Mapped[int] = mapped_column(Integer, primary_key = True, nullable=False)
 
 
 class bridge_film_category(Base):
