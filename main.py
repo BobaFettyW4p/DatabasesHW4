@@ -16,7 +16,7 @@ def configure_arguments():
     return parser.parse_args()
 
 def create_sqlite_engine(db_name):
-    engine = create_engine(f"sqlite:///{db_name}.db", echo=True)
+    engine = create_engine(f"sqlite:///{db_name}.db", echo=False)
 
     try:
         engine.connect()
@@ -27,7 +27,7 @@ def create_sqlite_engine(db_name):
 
 
 def create_mysql_engine(mysql_username, mysql_password):
-    engine = create_engine(f"mysql+pymysql://{mysql_username}:{mysql_password}@localhost/sakila")
+    engine = create_engine(f"mysql+pymysql://{mysql_username}:{mysql_password}@localhost/sakila", echo=False)
 
     try:
         engine.connect()
@@ -114,6 +114,34 @@ def incremental_sync(sqlite_session, mysql_session):
     increment_dim_date(sqlite_session, mysql_session)
     return "full sync complete!"
 
+def validate_sqlite_database(tables_to_validate, sqlite_session, mysql_session):
+    all_passed = True
+    failed_tables = []
+    for table, mysql_table, sqlite_table in tables_to_validate:
+        table_status = validate_table(sqlite_session, sqlite_table, mysql_session, mysql_table)
+        if table_status == False:
+            all_passed = False
+            failed_tables.append(table)
+        else:
+            continue
+    if failed_tables:
+        return False, failed_tables
+    return True, None
+
+
+def validate_table(sqlite_session, sqlite_table, mysql_session, mysql_table):
+    source_count = mysql_session.query(mysql_table).count()
+    target_count = sqlite_session.query(sqlite_table).count()
+    validation_status = source_count == target_count
+    return validation_status
+
+def validate_payment_amounts(sqlite_session, mysql_session):
+    mysql_total = mysql_session.query(func.sum(Payment.amount)).scalar()
+    sqlite_total = sqlite_session.query(func.sum(fact_payment.amount)).scalar()
+    if mysql_total == sqlite_total:
+        return True, mysql_total, sqlite_total
+    else:
+        return False, mysql_total, sqlite_total
 
 
 def main():
@@ -134,7 +162,27 @@ def main():
         incremental_sync(sqlite_session, mysql_session)
 
     elif args.mode == "Validate":
-        pass
+        tables_to_validate = [
+        ("film", Film, dim_film),
+        ("actor", Actor, dim_actor),
+        ("category", Category, dim_category),
+        ("store", Store, dim_store),
+        ("customer", Customer, dim_customer),
+        ("film_actor", FilmActor, bridge_film_actor),
+        ("film_category", FilmCategory, bridge_film_category),
+        ("rental", Rental, fact_rental),
+        ("payment", Payment, fact_payment),
+    ]
+        validation_status, failed_tables = validate_sqlite_database(tables_to_validate, sqlite_session, mysql_session)
+        payment_validation_status, mysql_amount, sqlite_amount = validate_payment_amounts(sqlite_session, mysql_session)
+        if validation_status == True and payment_validation_status == True:
+            print(f"tables successfully validated!")
+        elif validation_status == False and payment_validation_status == True:
+            print(f"tables not successfully validated: {failed_tables}")
+        elif validation_status == True and payment_validation_status == False:
+            print(f"payment table not validated. mysql value:{mysql_amount}, sqlite value:{sqlite_amount}")
+        else:
+            print(f"tables not successfully validated: {failed_tables} and amounts not validated: mysql value:{mysql_amount}, sqlite value:{sqlite_amount}")
     else:
         raise Exception("Invalid mode")
 
