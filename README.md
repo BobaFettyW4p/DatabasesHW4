@@ -2,7 +2,9 @@
 
 This project is written in python and uses sqlalchemy as the ORM used in this project.
 
-In order to properly manage packages in python, I have chosen to use `uv`
+In order to properly manage packages in python, I have chosen to use `uv`. For more information on installing this package manger on your system:
+
+https://docs.astral.sh/uv/getting-started/installation/
 
 in order to run the project:
 
@@ -46,7 +48,7 @@ uv run main.py --mode Full-load
 uv run main.py --mode Incremental
 ```
 
-7. To perform validation on your created sqlite table
+7. To perform validation on your created sqlite database
 
 ```
 uv run main.py --mode Validate
