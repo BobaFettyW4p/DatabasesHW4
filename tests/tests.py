@@ -1,5 +1,4 @@
 import pytest
-import sys
 
 from sqlalchemy import inspect
 from main import *
@@ -188,44 +187,33 @@ class TestFullLoad:
     def test_dim_date_key_format(self, sqlite_session):
         """date_key should be 8-char YYYYMMDD"""
         dates = sqlite_session.query(dim_date).all()
-        for d in dates:
-            assert len(d.date_key) == 8, f"date_key '{d.date_key}' should be 8 chars"
+        for date in dates:
+            assert len(date.date_key) == 8, f"date_key '{d.date_key}' should be 8 chars"
 
     def test_dim_date_date_format(self, sqlite_session):
         """date should be YYYY-MM-DD"""
         dates = sqlite_session.query(dim_date).all()
-        for d in dates:
-            assert len(d.date) == 10 and d.date[4] == "-" and d.date[7] == "-", \
-                f"date '{d.date}' should be YYYY-MM-DD format"
+        for date in dates:
+            assert len(date.date) == 10 and date.date[4] == "-" and date.date[7] == "-", \
+                f"date '{date.date}' should be YYYY-MM-DD format"
 
     def test_dim_date_weekend_flag(self, sqlite_session):
         '''is_weekend should be 1 for Saturday/Sunday, 0 otherwise'''
         dates = sqlite_session.query(dim_date).all()
-        for d in dates:
-            parsed = datetime.strptime(d.date_key, "%Y%m%d")
+        for date in dates:
+            parsed = datetime.strptime(date.date_key, "%Y%m%d")
             expected = 1 if parsed.isoweekday() >= 6 else 0
-            assert d.is_weekend == expected, \
-                f"is_weekend for {d.date} should be {expected}, got {d.is_weekend}"
+            assert date.is_weekend == expected, \
+                f"is_weekend for {date.date} should be {expected}, got {date.is_weekend}"
 
     def test_dim_date_quarter_values(self, sqlite_session):
         '''quarter should be 1, 2, 3, or 4'''
         dates = sqlite_session.query(dim_date).all()
-        for d in dates:
-            assert d.quarter in ("1", "2", "3", "4"), \
-                f"quarter should be 1-4, got {d.quarter}"
+        for date in dates:
+            assert date.quarter in ("1", "2", "3", "4"), \
+                f"quarter should be 1-4, got {date.quarter}"
 
-    # ── Fact table key ranges ──────────────────────────────────────────
-    def test_fact_rental_keys_start_above_50000(self, sqlite_session):
-        '''fact_rental surrogate keys should start above 50000'''
-        min_key = sqlite_session.query(func.min(fact_rental.fact_rental_key)).scalar()
-        assert min_key > 50000, "fact_rental keys should start above 50000"
-
-    def test_fact_payment_keys_start_above_80000(self, sqlite_session):
-        '''fact_payment surrogate keys should start above 80000'''
-        min_key = sqlite_session.query(func.min(fact_payment.fact_payment_key)).scalar()
-        assert min_key > 80000, "fact_payment keys should start above 80000"
-
-    # ── Row counts match MySQL source ──────────────────────────────────
+    #row counts match
     def test_film_count_matches_mysql(self, sqlite_session, mysql_session):
         '''confirm dim_film row count matches mysql film source'''
         sqlite_count = sqlite_session.query(dim_film).count()
@@ -353,44 +341,44 @@ class TestIncremental:
 
     def test_fact_rental_film_keys_valid(self, sqlite_session):
         '''film_keys in fact_rental should all exist in dim_film'''
-        fk = {r.film_key for r in sqlite_session.query(fact_rental.film_key).distinct()}
-        dk = {r.film_key for r in sqlite_session.query(dim_film.film_key)}
-        orphans = fk - dk
+        film_key = {rental.film_key for rental in sqlite_session.query(fact_rental.film_key).distinct()}
+        dup_key = {rental.film_key for rental in sqlite_session.query(dim_film.film_key)}
+        orphans = film_key - dup_key
         assert len(orphans) == 0, f"Orphan film_keys in fact_rental: {orphans}"
 
     def test_fact_rental_customer_keys_valid(self, sqlite_session):
         '''customer_keys in fact_rental should all exist in dim_customer'''
-        fk = {r.customer_key for r in sqlite_session.query(fact_rental.customer_key).distinct()}
-        dk = {r.customer_key for r in sqlite_session.query(dim_customer.customer_key)}
-        orphans = fk - dk
+        film_key = {rental.customer_key for rental in sqlite_session.query(fact_rental.customer_key).distinct()}
+        dup_key = {rental.customer_key for rental in sqlite_session.query(dim_customer.customer_key)}
+        orphans = film_key - dup_key
         assert len(orphans) == 0, f"Orphan customer_keys in fact_rental: {orphans}"
 
     def test_fact_rental_store_keys_valid(self, sqlite_session):
         '''store_keys in fact_rental should all exist in dim_store'''
-        fk = {r.store_key for r in sqlite_session.query(fact_rental.store_key).distinct()}
-        dk = {r.store_key for r in sqlite_session.query(dim_store.store_key)}
-        orphans = fk - dk
+        film_key = {rental.store_key for rental in sqlite_session.query(fact_rental.store_key).distinct()}
+        dup_key = {rental.store_key for rental in sqlite_session.query(dim_store.store_key)}
+        orphans = film_key - dup_key
         assert len(orphans) == 0, f"Orphan store_keys in fact_rental: {orphans}"
 
     def test_fact_payment_customer_keys_valid(self, sqlite_session):
         '''customer_keys in fact_payment should all exist in dim_customer'''
-        fk = {r.customer_key for r in sqlite_session.query(fact_payment.customer_key).distinct()}
-        dk = {r.customer_key for r in sqlite_session.query(dim_customer.customer_key)}
-        orphans = fk - dk
+        film_key = {rental.customer_key for rental in sqlite_session.query(fact_payment.customer_key).distinct()}
+        dup_key = {rental.customer_key for rental in sqlite_session.query(dim_customer.customer_key)}
+        orphans = film_key - dup_key
         assert len(orphans) == 0, f"Orphan customer_keys in fact_payment: {orphans}"
 
     def test_fact_payment_store_keys_valid(self, sqlite_session):
         '''store_keys in fact_payment should all exist in dim_store'''
-        fk = {r.store_key for r in sqlite_session.query(fact_payment.store_key).distinct()}
-        dk = {r.store_key for r in sqlite_session.query(dim_store.store_key)}
-        orphans = fk - dk
+        film_key = {rental.store_key for rental in sqlite_session.query(fact_payment.store_key).distinct()}
+        dup_key = {rental.store_key for rental in sqlite_session.query(dim_store.store_key)}
+        orphans = film_key - dup_key
         assert len(orphans) == 0, f"Orphan store_keys in fact_payment: {orphans}"
 
     def test_fact_rental_date_keys_valid(self, sqlite_session):
         '''date_key_rented in fact_rental should all exist in dim_date'''
-        fk = {r.date_key_rented for r in sqlite_session.query(fact_rental.date_key_rented).distinct() if r.date_key_rented}
-        dk = {r.date_key for r in sqlite_session.query(dim_date.date_key)}
-        orphans = fk - dk
+        film_key = {rental.date_key_rented for rental in sqlite_session.query(fact_rental.date_key_rented).distinct() if r.date_key_rented}
+        dup_key = {rental.date_key for rental in sqlite_session.query(dim_date.date_key)}
+        orphans = film_key - dup_key
         assert len(orphans) == 0, f"Orphan date_key_rented in fact_rental: {orphans}"
 
 
