@@ -53,3 +53,9 @@ uv run main.py --mode Incremental
 ```
 uv run main.py --mode Validate
 ```
+
+8. To run the test suite (from the root of this repo):
+
+```
+uv run pytest tests/tests.py
+```
